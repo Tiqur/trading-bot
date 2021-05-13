@@ -6,8 +6,10 @@ class websocket_client:
         self.address = address
         self.prices = prices
         self.alerts = alerts
+        self.start()
 
     def start(self):
+        asyncio.set_event_loop(asyncio.new_event_loop())
         asyncio.get_event_loop().run_until_complete(self.client(self.address))
 
     async def client(self, address):
