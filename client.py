@@ -9,11 +9,13 @@ class websocket_client:
         self.start()
 
     def start(self):
+        print("Connecting to server...")
         asyncio.set_event_loop(asyncio.new_event_loop())
         asyncio.get_event_loop().run_until_complete(self.client(self.address))
 
     async def client(self, address):
         async with websockets.connect(address, ping_interval=None) as websocket:
+            print("Connected!")
             while True:
                 msg = json.loads(await websocket.recv())
                 data_type = msg["type"]

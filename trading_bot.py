@@ -38,8 +38,11 @@ class TradingBot():
         prev_amount = self.wallet[token]
         new_amount = prev_amount + stable_amount_after_fees / Decimal(self.prices[token])
 
+        # Update wallet
+        self.wallet[token] = new_amount
+        self.wallet['stable'] -= stable_amount
+
         self.trades.append({'type': 'buy', 'token': token, 'tokens_gained': new_amount, 'stable_lost': stable_amount_after_fees, 'fees': (stable_amount * self.fees['market'])})
-        self.orders.append({'type': 'market_buy', 'token': token, 'amount': new_amount})
         print(f"Executed market buy order for {new_amount} {token} at {self.prices[token]} ( ${stable_amount} )")
 
     def market_sell(self, token, token_amount):
@@ -55,18 +58,55 @@ class TradingBot():
         stable_amount = Decimal(self.prices[token]) * token_amount
         stable_amount_after_fees = stable_amount - (stable_amount * self.fees['market'])
 
+        # Update wallet
+        self.wallet[token] -= token_amount
+        self.wallet['stable'] += stable_amount_after_fees
+
         self.trades.append({'type': 'sell', 'token': token, 'tokens_lost': token_amount, 'stable_gained': stable_amount_after_fees, 'fees': (stable_amount * self.fees['market'])})
-        self.orders.append({'type': 'market_sell', 'token': token, 'amount': token_amount})
         print(f"Executed market sell order for {token_amount} {token} at {self.prices[token]} ( ${stable_amount_after_fees} )")
 
-    def stop_loss(self, token, current_price, percent_below):
-        pass
+    def stop_loss(self, token, amount, price, percent_below):
+        self.orders.append({'type': 'stop_loss', 'token': token, 'amount': amount, 'price': price, 'percent_below': percent_below})
     
-    def trailing_stop_loss(self, token, current_price, percent_below):
-        pass
+    def trailing_stop_loss(self, token, amount, price, percent_below):
+        self.orders.append({'type': 'trailing_stop_loss', 'token': token, 'amount': amount, 'price': price, 'percent_below': percent_below})
 
     def exec_loop(self):
         # Loop Executes orders and pops them off once filled
         while True:
             if self.orders:
-                print(self.orders)
+                for order in self.orders:
+                    type = order['type']
+                    token = order['token']
+                    amount = order['amount']
+                    order_price = order['price']
+                    percent_below = order['percent_below']
+                    current_price = self.prices[token]
+
+                    # Calculate percent
+                    percent = current_price / order_price
+                    threshold = order_price * percent
+                    
+                    # Loss
+                    if 'loss' in type:
+                        # If below 
+                        if current_price < threshold:
+                            # Update wallet
+                            self.wallet[token] -= token_amount
+                            self.wallet['stable'] += stable_amount_after_fees
+
+                            # Remove order
+                            self.orders.remove(order)
+                        
+                        # Move threshold up if above current price
+                        if 'trail' in type and current_price > order_price:
+                            order['percent_below'] = current_price - current_price * percent_below
+
+
+
+
+                        
+
+
+
+
