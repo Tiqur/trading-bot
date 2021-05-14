@@ -22,7 +22,6 @@ class websocket_client:
                 # Update prices
                 if type == "price":
                     price = msg["price"]
-                    print(price)
 
                     # Update price
                     if token in self.prices:
