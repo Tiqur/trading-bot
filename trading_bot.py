@@ -69,7 +69,16 @@ class TradingBot():
         self.orders.append({'type': 'stop_loss', 'token': token, 'amount': amount, 'price': price, 'percent_below': percent_below})
     
     def trailing_stop_loss(self, token, amount, price, percent_below):
-        self.orders.append({'type': 'trailing_stop_loss', 'token': token, 'amount': amount, 'price': price, 'percent_below': percent_below})
+        self.orders.append({'type': 'trailing_stop_loss', 'token': token, 'amount': amount, 'price': price, 'highest_price': price + price * percent_below, 'percent_below': percent_below})
+
+    # Private sell method
+    def _sell(self, token, new_token_amount, new_stable_amount):
+        # update wallet
+        self.wallet[token] -= new_token_amount
+        self.wallet['stable'] += new_stable_amount
+
+        # remove order
+        self.orders.remove(order)
 
     def exec_loop(self):
         # Loop Executes orders and pops them off once filled
@@ -82,25 +91,33 @@ class TradingBot():
                     order_price = order['price']
                     percent_below = order['percent_below']
                     current_price = self.prices[token]
-
-                    # Calculate percent
-                    percent = current_price / order_price
-                    threshold = order_price * percent
                     
+                    # Calculate stable amount after fees
+                    stable_amount = Decimal(current_price) * amount
+                    stable_amount_after_fees = stable_amount - (stable_amount * self.fees['spot'])
+
                     # Loss
-                    if 'loss' in type:
+                    if type == 'stop_loss':
+                        # Calculate threshold
+                        threshold = order_price - order_price * percent_below
+
                         # If below 
                         if current_price < threshold:
-                            # Update wallet
-                            self.wallet[token] -= token_amount
-                            self.wallet['stable'] += stable_amount_after_fees
-
-                            # Remove order
-                            self.orders.remove(order)
+                            self._sell(token, amount, stable_amount_after_fees)
                         
-                        # Move threshold up if above current price
-                        if 'trail' in type and current_price > order_price:
-                            order['percent_below'] = current_price - current_price * percent_below
+                    # Move threshold up if above threshold price
+                    if type == 'trailing_stop_loss':
+                        highest_price = order['highest_price']
+
+                        if current_price > highest_price:
+                            order['highest_price'] = current_price
+            
+                        trailing_threshold = highest_price - highest_price * percent_below
+
+
+                        if current_price < trailing_threshold:
+                            self._sell(token, amount, stable_amount_after_fees)
+
 
 
 
