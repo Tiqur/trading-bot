@@ -12,7 +12,6 @@ while True:
     # Manage alerts
     if bot.alerts:
         alert = bot.alerts.pop()
-        print(alert)
         ema4 = alert['4ma']
         token = alert['token']
         current_price = Decimal(bot.prices[token])

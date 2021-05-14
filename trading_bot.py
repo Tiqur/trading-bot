@@ -69,7 +69,7 @@ class TradingBot():
         self.orders.append({'type': 'stop_loss', 'token': token, 'amount': amount, 'price': price, 'percent_below': percent_below})
     
     def trailing_stop_loss(self, token, amount, price, percent_below):
-        self.orders.append({'type': 'trailing_stop_loss', 'token': token, 'amount': amount, 'price': price, 'highest_price': price + price * Decimal(percent_below), 'percent_below': Decimal(percent_below)})
+        self.orders.append({'type': 'trailing_stop_loss', 'token': token, 'amount': amount, 'price': price, 'highest_price': price, 'percent_below': Decimal(percent_below)})
 
     # Private sell method
     def _sell(self, token, new_token_amount, new_stable_amount, order):
@@ -130,7 +130,6 @@ class TradingBot():
                             order['highest_price'] = current_price
                         else:
                             trailing_threshold = highest_price - highest_price * Decimal(percent_below)
-
                             if current_price < trailing_threshold:
                                 self._sell(token, amount, stable_amount_after_fees, order)
                                 print(f"Executed trailing stop loss order for {amount} {token} at {current_price} ( ${stable_amount_after_fees} )")
