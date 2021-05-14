@@ -12,7 +12,13 @@ class trading_bot():
         self.trades = []
         self.prices = {}
         self.wallet = {'stable': Decimal(starting_amount)}
-        self.start()
+        self.init()
+        self.exec_loop()
+    
+    def init(self):
+        # Initialize client
+        thread = threading.Thread(target=websocket_client, args=('ws://localhost:5000', self.prices, self.alerts))
+        thread.start()
 
     def market_buy(self, token, stable_amount):
         # If specified token does not exist
@@ -34,17 +40,9 @@ class trading_bot():
         prev_amount = self.wallet[token]
         new_amount = prev_amount + stable_amount_after_fees / Decimal(self.prices[token])
 
-        # Update wallet
-        self.wallet[token] = new_amount
-        self.wallet['stable'] -= stable_amount
-        print(f"Executed market buy order for {new_amount} {token} at {self.prices[token]} ( ${stable_amount} )")
         self.trades.append({'type': 'buy', 'token': token, 'tokens_gained': new_amount, 'stable_lost': stable_amount_after_fees, 'fees': (stable_amount * self.fees['market'])})
-
-    def exec_stop_loss(self, token, current_price, percent_below):
-        pass
-    
-    def exec_trailing_stop_loss(self, token, current_price, percent_below):
-        pass
+        self.orders.append({'type': 'market_buy', 'token': token, 'amount': new_amount})
+        print(f"Executed market buy order for {new_amount} {token} at {self.prices[token]} ( ${stable_amount} )")
 
     def market_sell(self, token, token_amount):
         # If specified token does not exist
@@ -59,26 +57,20 @@ class trading_bot():
         stable_amount = Decimal(self.prices[token]) * token_amount
         stable_amount_after_fees = stable_amount - (stable_amount * self.fees['market'])
 
-        # Update wallet
-        self.wallet[token] -= token_amount
-        self.wallet['stable'] += stable_amount_after_fees
-        print(f"Executed market sell order for {token_amount} {token} at {self.prices[token]} ( ${stable_amount_after_fees} )")
         self.trades.append({'type': 'sell', 'token': token, 'tokens_lost': token_amount, 'stable_gained': stable_amount_after_fees, 'fees': (stable_amount * self.fees['market'])})
+        self.orders.append({'type': 'market_sell', 'token': token, 'amount': token_amount})
+        print(f"Executed market sell order for {token_amount} {token} at {self.prices[token]} ( ${stable_amount_after_fees} )")
 
-    def start(self):
-        # Initialize client
-        thread = threading.Thread(target=websocket_client, args=('ws://localhost:5000', self.prices, self.alerts))
-        thread.start()
-        
-        time.sleep(5)
-        self.market_buy("DOGEUSDT", 1000)
-        self.market_sell("DOGEUSDT", self.wallet['DOGEUSDT'])
-        print(self.wallet)
-        return
+    def stop_loss(self, token, current_price, percent_below):
+        pass
+    
+    def trailing_stop_loss(self, token, current_price, percent_below):
+        pass
 
-        # Start bot
+    def exec_loop(self):
+        # Loop Executes orders and pops them off once filled
         while True:
-            print(self.prices)
+            print(self.orders)
             
 bot = trading_bot(fees, 1000)
 
