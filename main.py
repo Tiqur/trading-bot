@@ -1,7 +1,7 @@
 import threading, time
 from decimal import *
 from client import *   
-fees = {"spot": Decimal(0.01), "market": Decimal(0.05)}
+fees = {"spot": Decimal(0.001), "market": Decimal(0.005)}
 
 # Trading bot
 class trading_bot():
