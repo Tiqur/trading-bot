@@ -42,7 +42,7 @@ class TradingBot():
         self.wallet[token] = new_amount
         self.wallet['stable'] -= stable_amount
 
-        self.trades.append({'type': 'buy', 'token': token, 'tokens_gained': new_amount, 'stable_lost': stable_amount_after_fees, 'fees': (stable_amount * self.fees['market'])})
+        self.trades.append({'type': 'sell', 'token': token, 'token_gained': new_amount, 'stable_lost': stable_amount_after_fees})
         print(f"Executed market buy order for {new_amount} {token} at {self.prices[token]} ( ${stable_amount} )")
 
     def market_sell(self, token, token_amount):
@@ -62,7 +62,7 @@ class TradingBot():
         self.wallet[token] -= token_amount
         self.wallet['stable'] += stable_amount_after_fees
 
-        self.trades.append({'type': 'sell', 'token': token, 'tokens_lost': token_amount, 'stable_gained': stable_amount_after_fees, 'fees': (stable_amount * self.fees['market'])})
+        self.trades.append({'type': 'sell', 'token': token, 'tokens_lost': amount, 'stable_gained': stable_amount_after_fees})
         print(f"Executed market sell order for {token_amount} {token} at {self.prices[token]} ( ${stable_amount_after_fees} )")
 
     def stop_loss(self, token, amount, price, percent_below):
@@ -72,7 +72,7 @@ class TradingBot():
         self.orders.append({'type': 'trailing_stop_loss', 'token': token, 'amount': amount, 'price': price, 'highest_price': price + price * percent_below, 'percent_below': percent_below})
 
     # Private sell method
-    def _sell(self, token, new_token_amount, new_stable_amount):
+    def _sell(self, token, new_token_amount, new_stable_amount, order):
         # update wallet
         self.wallet[token] -= new_token_amount
         self.wallet['stable'] += new_stable_amount
@@ -96,6 +96,13 @@ class TradingBot():
                     stable_amount = Decimal(current_price) * amount
                     stable_amount_after_fees = stable_amount - (stable_amount * self.fees['spot'])
 
+
+                    # Prevent multiple sells
+                    if self.wallet[token] < amount:
+                        self.orders.remove(order)
+                        continue
+
+
                     # Loss
                     if type == 'stop_loss':
                         # Calculate threshold
@@ -103,7 +110,8 @@ class TradingBot():
 
                         # If below 
                         if current_price < threshold:
-                            self._sell(token, amount, stable_amount_after_fees)
+                            self._sell(token, amount, stable_amount_after_fees, order)
+                            print(f"Executed stop loss order for {amount} {token} at {current_price} ( ${stable_amount_after_fees} )")
                         
                     # Move threshold up if above threshold price
                     if type == 'trailing_stop_loss':
@@ -114,9 +122,9 @@ class TradingBot():
             
                         trailing_threshold = highest_price - highest_price * percent_below
 
-
                         if current_price < trailing_threshold:
-                            self._sell(token, amount, stable_amount_after_fees)
+                            self._sell(token, amount, stable_amount_after_fees, order)
+                            print(f"Executed stop loss order for {amount} {token} at {current_price} ( ${stable_amount_after_fees} )")
 
 
 
