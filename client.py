@@ -16,11 +16,11 @@ class websocket_client:
         async with websockets.connect(address, ping_interval=None) as websocket:
             while True:
                 msg = json.loads(await websocket.recv())
-                type = msg["type"]
+                data_type = msg["type"]
                 token = msg["token"]
 
                 # Update prices
-                if type == "price":
+                if data_type == "price":
                     price = msg["price"]
 
                     # Update price
@@ -30,7 +30,7 @@ class websocket_client:
                         self.prices.update({token: price})
                 
                 # Add alert
-                elif type == "alert":
+                elif data_type == "alert":
                     time = msg['time']
                     interval = msg['interval']
                     ema4 = msg['4ma']
