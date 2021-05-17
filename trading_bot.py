@@ -39,27 +39,22 @@ class TradingBot():
 
 
     def _exec_order(self, token, amount, type, order_type, order=None, limit_price=None):
-        exec = True
         current_price = Decimal(self.prices[token])
-
+        
         # If order is a limit buy / sell
-        if limit_price:
-            if type == 'buy' and current_price < limit_price or type == 'sell' and current_price > limit_price:
-                exec = False
+        if (limit_price and type == 'buy' and current_price <= limit_price) and (limit_price and type == 'sell' and current_price >= limit_price) and not limit_price:
+            current_price = Decimal(limit_price if limit_price else current_price)
+            stable_amount = current_price * amount
+            stable_amount_with_fees = stable_amount - stable_amount * self.fees['spot' if limit_price else 'market']
 
-        if exec:
-            print(f"Executed {order_type} {type} order for {current_price * amount if type == 'sell' else amount} {'stable' if type == 'sell' else token}( ${Decimal(current_price) * amount} )")
-            new_stable_amt = Decimal(limit_price if limit_price else current_price) * amount
-            new_stable_amt -= new_stable_amt * self.fees['spot' if limit_price else 'market']
-            new_token_amt = amount
+            if type == 'buy':
+                self.wallet[token] += stable_amount_with_fees / current_price
+                self.wallet['stable'] -= stable_amount_with_fees 
+            else: 
+                self.wallet[token] -= amount
+                self.wallet['stable'] += stable_amount_with_fees * current_price
 
-            if type == 'sell':
-                new_stable_amt *= -1
-                new_token_amt *= -1
-
-            self.wallet[token] += new_token_amt
-            self.wallet['stable'] -= new_stable_amt 
-
+            print(f"Executed {order_type} {type} order for {round(amount, 4)} {token} at {round(current_price, 4)} ( ${round(self.wallet['stable'], 2)} )")
             # Pop 
             if order:
                 self.orders.remove(order)
@@ -70,7 +65,15 @@ class TradingBot():
         if not token in self.wallet:
             self.wallet.update({token: 0})
 
-        print(f"Placed {order_type} {type} order for {token_amount} {token}{f' at {limit}' if limit else ''}")
+
+        # Validate 
+        if type == 'buy' and Decimal(token_amount) * Decimal(self.prices[token]) > self.wallet['stable']:
+            raise Exception('Not enough stable!')
+        elif type == 'sell' and token_amount > self.wallet[token]:
+            raise Exception(f"Not enough {token} in wallet!")
+
+
+        print(f"Placed {order_type} {type} order for {round(token_amount, 4)} {token}{f' at {round(limit, 4)}' if limit else ''}")
         if type == 'buy' or 'sell' and order_type == 'market' or 'limit':
             obj = {'type': type, 'order_type': order_type, 'token': token, 'amount': token_amount}
 
