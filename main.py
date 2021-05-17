@@ -19,8 +19,8 @@ while True:
         if bot.wallet['stable'] > 10:
             if ema4 == sorted(ema4):
                 bot.market_buy(token, bot.wallet['stable'])
-                #bot.stop_loss(token, bot.wallet[token], current_price, 0.01)
-                bot.trailing_stop_loss(token, bot.wallet[token], current_price, 0.01)
+                bot.stop_loss(token, bot.wallet[token], current_price, 0.01)
+                #bot.trailing_stop_loss(token, bot.wallet[token], current_price, 0.002)
                 
 
          
