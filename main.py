@@ -14,12 +14,17 @@ while True:
         alert = bot.alerts.pop()
         ema4 = alert['4ma']
         token = alert['token']
+        stable_balance = bot.wallet['stable']
         current_price = Decimal(bot.prices[token])
 
         if bot.wallet['stable'] > 10:
             if ema4 == sorted(ema4):
-                bot.market_buy(token, bot.wallet['stable'])
-                bot.stop_loss(token, bot.wallet[token], current_price, 0.01)
+                token_amt = stable_balance * current_price
+                limit_sell = current_price + current_price * 0.01
+                stop_loss = current_price + current_price * -0.01
+                bot.market_buy(token, token_amt)
+                bot.limit_sell(token, bot.wallet[token], limit_sell)
+                bot.limit_sell(token, bot.wallet[token], stop_loss)
                 #bot.trailing_stop_loss(token, bot.wallet[token], current_price, 0.002)
                 
 
