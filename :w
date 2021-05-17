@@ -32,9 +32,9 @@ class TradingBot():
         threading.Thread(target=websocket_client, args=('ws://localhost:5000', self.prices, self.alerts)).start()
         threading.Thread(target=self.exec_loop).start()
 
-    def _exec_order(self, token, amount, type, order_type, order, limit_price):
+    def _exec_order(self, token, amount, type, order, limit_price):
         exec = True
-        current_price = Decimal(self.prices[token])
+        current_price = self.prices[token]
 
         # If order is a limit buy / sell
         if limit_price:
@@ -42,9 +42,9 @@ class TradingBot():
                 exec = False
 
         if exec:
-            print(f"Executed {order_type} {type} order for {current_price * amount if type == 'sell' else amount} {'stable' if type == 'sell' else token}( ${Decimal(current_price) * amount} )")
-            mul_stable = Decimal(limit_price if limit_price else current_price)
-            new_stable_amt = mul_stable * amount
+            print(f"Executed {order} {type} order for {current_price * amount if type == 'sell' else amount} {'stable' if type == 'sell' else token}( ${current_price * Decimal(amount)} )")
+            mul_stable = limit_price if limit_price else current_price
+            new_stable_amt = mul_stable * token
             new_token_amt = amount
 
             if type == 'sell':
@@ -55,16 +55,16 @@ class TradingBot():
             self.wallet['stable'] -= new_stable_amt - new_stable_amt * self.fees['spot' if limit_price else 'market']
             self.orders.remove(order)
 
-    def _order(self, token, token_amount, order_type, type, limit=None):
+    def _order(self, token, token_amount, order, type, limit=None):
         # If token is not in wallet, initialize it
         if not token in self.wallet:
             self.wallet.update({token: 0})
 
-        print(f"Placed {order_type} {type} order for {token_amount} {token}{f' at {limit}' if limit else ''}")
-        if type == 'buy' or 'sell' and order_type == 'market' or 'limit':
-            obj = {'type': type, 'order_type': order_type, 'token': token, 'amount': token_amount}
+        print(f"Placed {order} {type} order for {token_amount} {token}{f' at {limit}' if limit else ''}")
+        if type == 'buy' or 'sell' and order == 'market' or 'limit':
+            obj = {'type': f"{order}_{type}", 'token': token, 'amount': token_amount}
 
-            if order_type == 'limit':
+            if order == 'limit':
                 obj.update({'limit': limit})
 
             # Append order to order queue
@@ -79,11 +79,10 @@ class TradingBot():
             if self.orders:
                 for order in self.orders:
                     type = order['type']
-                    order_type = order['order_type']
                     token = order['token']
                     amount = order['amount']
                     limit = order['limit'] if 'limit' in order else None
-                    self._exec_order(token, amount, type, order_type, order, limit)
+                    self._exec_order(token, amount, type, order, limit)
 
 
                     
