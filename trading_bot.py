@@ -38,11 +38,12 @@ class TradingBot():
         threading.Thread(target=self.exec_loop).start()
 
 
-    def _exec_order(self, token, amount, type, order_type, order=None, limit_price=None):
+    def _exec_order(self, token, amount, type, order_type, order=None, limit_price=None, starting_amount=None):
         current_price = Decimal(self.prices[token])
+        limit_above = limit_price and limit_price > starting_amount and current_price > limit_price
+        limit_below = limit_price and limit_price < starting_amount and current_price < limit_price
         
-        # If order is a limit buy / sell
-        if (limit_price and type == 'buy' and current_price > limit_price) or (limit_price and type == 'sell' and current_price < limit_price) or not limit_price:
+        if limit_above or limit_below or not limit_price:
             current_price = Decimal(limit_price if limit_price else current_price)
             fees = self.fees['spot' if limit_price else 'market']
 
@@ -88,7 +89,8 @@ class TradingBot():
             if order_type == 'market':
                 self._exec_order(token, token_amount, type, order_type)
             else:
-                obj.update({'limit': limit})
+                # Starting price to make this more generic ( if limit > starting_price, then it will sell when it goes above that, or if limit < starting_price, will sell if below that )
+                obj.update({'limit': limit, 'starting_price': Decimal(self.prices[token])})
 
                 # Append order to order queue
                 self.orders.append(obj)
@@ -104,7 +106,8 @@ class TradingBot():
                 for order in self.orders:
                     # Execute order
                     limit = order['limit'] if 'limit' in order else None
-                    self._exec_order(order['token'], order['amount'], order['type'], order['order_type'], order, limit)
+                    starting_price = order['starting_price'] if 'starting_price' in order else None
+                    self._exec_order(order['token'], order['amount'], order['type'], order['order_type'], order, limit, starting_price)
 
 
                     
