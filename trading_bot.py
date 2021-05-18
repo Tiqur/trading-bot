@@ -60,12 +60,13 @@ class TradingBot():
                 new_stable = amount * current_price
                 new_stable_with_fees = new_stable - new_stable * fees
                 self.wallet[token] -= amount
-                self.wallet['stable'] +=  new_stable_with_fees
+                self.wallet['stable'] += new_stable_with_fees
                 print(f"Executed {order_type} {type} order for {round(new_stable_with_fees, 4)} stable at {round(current_price, 4)} ( ${round(new_stable_with_fees, 2)} )")
 
-            # Pop 
+            # Remove all orders containing identical token name
             if order:
-                self.orders.remove(order)
+                self.orders = [o for o in self.orders if o['token'] != token]
+
 
     def _order(self, token, token_amount, order_type, type, limit=None):
         # If token is not in wallet, initialize it
