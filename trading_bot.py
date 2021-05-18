@@ -15,12 +15,12 @@ class TradingBot():
     
 
     # Public methods
-    def limit_buy(self, token, token_amount, limit):
-        self._order(token, token_amount, 'limit', 'buy', limit)
+    def limit_buy(self, token, stable_amount, limit):
+        self._order(token, stable_amount, 'limit', 'buy', limit)
         
 
-    def limit_sell(self, token, token_amount, limit):
-        self._order(token, token_amount, 'limit', 'sell', limit)
+    def limit_sell(self, token, stable_amount, limit):
+        self._order(token, stable_amount, 'limit', 'sell', limit)
 
 
     def market_buy(self, token, token_amount):
@@ -42,43 +42,50 @@ class TradingBot():
         current_price = Decimal(self.prices[token])
         
         # If order is a limit buy / sell
-        if (limit_price and type == 'buy' and current_price <= limit_price) and (limit_price and type == 'sell' and current_price >= limit_price) and not limit_price:
+        if (limit_price and type == 'buy' and current_price > limit_price) or (limit_price and type == 'sell' and current_price < limit_price) or not limit_price:
             current_price = Decimal(limit_price if limit_price else current_price)
-            stable_amount = current_price * amount
-            stable_amount_with_fees = stable_amount - stable_amount * self.fees['spot' if limit_price else 'market']
+            fees = self.fees['spot' if limit_price else 'market']
 
+
+            # If buy, amount is the amount of stable coins to spend
             if type == 'buy':
-                self.wallet[token] += stable_amount_with_fees / current_price
-                self.wallet['stable'] -= stable_amount_with_fees 
-            else: 
-                self.wallet[token] -= amount
-                self.wallet['stable'] += stable_amount_with_fees * current_price
+                amount_with_fees = amount - amount * fees
+                self.wallet[token] += amount_with_fees / current_price
+                self.wallet['stable'] -= amount
+                print(f"Executed {order_type} {type} order for {round(amount_with_fees / current_price, 4)} {token} at {round(current_price, 4)} ( ${round(amount, 2)} )")
 
-            print(f"Executed {order_type} {type} order for {round(amount, 4)} {token} at {round(current_price, 4)} ( ${round(self.wallet['stable'], 2)} )")
+            # If sell, amount is the amount of tokens to sell
+            else: 
+                new_stable = amount * current_price
+                new_stable_with_fees = new_stable - new_stable * fees
+                self.wallet[token] -= amount
+                self.wallet['stable'] +=  new_stable_with_fees
+                print(f"Executed {order_type} {type} order for {round(new_stable_with_fees, 4)} stable at {round(current_price, 4)} ( ${round(new_stable_with_fees, 2)} )")
+
             # Pop 
             if order:
                 self.orders.remove(order)
-
 
     def _order(self, token, token_amount, order_type, type, limit=None):
         # If token is not in wallet, initialize it
         if not token in self.wallet:
             self.wallet.update({token: 0})
 
-
         # Validate 
-        if type == 'buy' and Decimal(token_amount) * Decimal(self.prices[token]) > self.wallet['stable']:
+        if type == 'buy' and Decimal(token_amount) > self.wallet['stable']:
             raise Exception('Not enough stable!')
         elif type == 'sell' and token_amount > self.wallet[token]:
             raise Exception(f"Not enough {token} in wallet!")
 
+        if limit:
+            print(f"Placed {order_type} {type} order for {round(token_amount, 4) if type == 'sell' else round(token_amount * Decimal(self.prices[token]), 4)} {token}{f' at {round(limit, 4)}' if limit else ''}")
 
-        print(f"Placed {order_type} {type} order for {round(token_amount, 4)} {token}{f' at {round(limit, 4)}' if limit else ''}")
+
         if type == 'buy' or 'sell' and order_type == 'market' or 'limit':
             obj = {'type': type, 'order_type': order_type, 'token': token, 'amount': token_amount}
 
             # If market order, prioritize and call immediatly
-            if not order_type == 'limit':
+            if order_type == 'market':
                 self._exec_order(token, token_amount, type, order_type)
             else:
                 obj.update({'limit': limit})
